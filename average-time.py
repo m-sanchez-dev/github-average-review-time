@@ -85,7 +85,6 @@ if response.status_code == 200:
     )
 
     for author, approval_times in approval_times_per_author.items():
-        print(author), print(approval_times)
         average_approval_time = sum(approval_times) / len(approval_times)
         print(
             f"Author: {author}, Average Approval Time: {average_approval_time:.2f} hours"
