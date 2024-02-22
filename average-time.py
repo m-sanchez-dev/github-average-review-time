@@ -61,7 +61,7 @@ def filter_pull_requests_by_date(pull_requests):
     latest_date = datetime.strptime(
         os.environ.get("LATEST_DATE", "2022-12-31"), "%Y-%m-%d"
     )
-    print(len(pull_requests))
+
     for pr in pull_requests:
 
         created_at = datetime.strptime(pr["created_at"], "%Y-%m-%dT%H:%M:%SZ")
@@ -106,7 +106,7 @@ def get_all_pull_requests():
         )
 
         all_pull_requests.extend(filtered_pull_requests)
-        print(f"{len(all_pull_requests)} PRs retrieved")
+        print(f"{len(all_pull_requests)} PRs retrieved", end="\r", flush=True)
 
         if removed_old_pull_requests:
             break
@@ -125,6 +125,7 @@ check_env_variables()
 total_approval_times = {}
 
 pull_requests = get_all_pull_requests()
+analyzed_prs = 0
 
 for pr in pull_requests:
     created_at = datetime.strptime(pr["created_at"], "%Y-%m-%dT%H:%M:%SZ")
@@ -170,12 +171,15 @@ for pr in pull_requests:
         # Move to the next day
         current_day += timedelta(days=1)
 
+    analyzed_prs += 1
+    print(f"{analyzed_prs} PRs analyzed", end="\r", flush=True)
+
     if author not in total_approval_times:
         total_approval_times[author] = []
 
     total_approval_times[author].append(approval_duration)
 
-
+print(f"Analyzed {analyzed_prs}")
 # Display the total average approval times
 for author, approval_times in total_approval_times.items():
     average_approval_time = sum(approval_times) / len(approval_times)
