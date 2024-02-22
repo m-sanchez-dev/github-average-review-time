@@ -18,56 +18,6 @@ def calculate_working_hours(
     )
 
 
-def calculate_average_approval_times(
-    pull_requests, working_hours_start, working_hours_end
-):
-    approval_times_per_author = {}
-
-    for pr in pull_requests:
-        author = pr["user"]["login"]
-        submission_time = datetime.strptime(pr["created_at"], "%Y-%m-%dT%H:%M:%SZ")
-
-        if not pr["merged_at"]:
-            continue  # Skip if the pull request has not been merged
-
-        approval_time = datetime.strptime(pr["merged_at"], "%Y-%m-%dT%H:%M:%SZ")
-
-        # Initialize adjusted approval duration
-        approval_duration = 0
-
-        # Iterate through days between submission and approval
-        current_day = submission_time.date()
-        while current_day <= approval_time.date():
-            # Determine the relevant working hours for the current day
-            current_start_time = max(
-                submission_time, datetime.combine(current_day, working_hours_start)
-            )
-            current_end_time = min(
-                approval_time, datetime.combine(current_day, working_hours_end)
-            )
-
-            # Calculate the time spent within working hours for the current day
-            current_duration = calculate_working_hours(
-                current_start_time,
-                current_end_time,
-                working_hours_start,
-                working_hours_end,
-            )
-
-            # Add the time spent on the current day to the total approval duration
-            approval_duration += current_duration
-
-            # Move to the next day
-            current_day += timedelta(days=1)
-
-        if author not in approval_times_per_author:
-            approval_times_per_author[author] = []
-
-        approval_times_per_author[author].append(approval_duration)
-
-    return approval_times_per_author
-
-
 # Load environment variables from .env file
 load_dotenv()
 
@@ -91,45 +41,79 @@ params = {
     "state": "closed",
     "per_page": 1000,  # Number of pull requests per page
     "page": 1,
+    "sort": "created",
+    "direction": "desc",  # Sort in descending order (newest first)
 }
 headers = {"Authorization": f"Bearer {access_token}"}
 
-# Initialize variables
-total_pull_requests = []
-total_approval_times = {}
+# Define the latest date we want to consider
+latest_date = datetime.strptime(os.environ.get("LATEST_DATE", "2023-12-31"), "%Y-%m-%d")
 
+# Accumulate approval times across all pages
+total_approval_times = {}
+overDate = False
 while True:
-    print(f'Requesting page {params["page"]}...')
     response = requests.get(url, params=params, headers=headers)
 
-    if response.status_code == 200:
-        pull_requests = response.json()
-        if not pull_requests:
-            break  # No more pages to retrieve
-
-        approval_times_per_author = calculate_average_approval_times(
-            [
-                pr
-                for pr in pull_requests
-                if since_date
-                <= datetime.strptime(pr["created_at"], "%Y-%m-%dT%H:%M:%SZ")
-                <= until_date
-            ],
-            working_hours_start,
-            working_hours_end,
-        )
-
-        for author, approval_times in approval_times_per_author.items():
-            if author not in total_approval_times:
-                total_approval_times[author] = []
-
-            total_approval_times[author].extend(approval_times)
-
-        # Move to the next page
-        params["page"] += 1
-    else:
+    if not response.status_code == 200:
         print(f"Failed to retrieve pull requests. Status code: {response.status_code}")
         break
+
+    print(f"Retrieved page {params['page']} of pull requests")
+    pull_requests = response.json()
+    if not pull_requests or overDate:
+        break  # No more pages to retrieve
+
+    for pr in pull_requests:
+        created_at = datetime.strptime(pr["created_at"], "%Y-%m-%dT%H:%M:%SZ")
+
+        if created_at < latest_date:
+            overDate = True
+            break  # Exit the loop if the created_at date is before the specified latest date
+
+        author = pr["user"]["login"]
+
+        if not pr["merged_at"]:
+            continue  # Skip if the pull request has not been merged
+
+        approval_time = datetime.strptime(pr["merged_at"], "%Y-%m-%dT%H:%M:%SZ")
+
+        # Initialize adjusted approval duration
+        approval_duration = 0
+
+        # Iterate through days between submission and approval
+        current_day = created_at.date()
+        while current_day <= approval_time.date():
+            # Determine the relevant working hours for the current day
+            current_start_time = max(
+                created_at, datetime.combine(current_day, working_hours_start)
+            )
+            current_end_time = min(
+                approval_time, datetime.combine(current_day, working_hours_end)
+            )
+
+            # Calculate the time spent within working hours for the current day
+            current_duration = calculate_working_hours(
+                current_start_time,
+                current_end_time,
+                working_hours_start,
+                working_hours_end,
+            )
+
+            # Add the time spent on the current day to the total approval duration
+            approval_duration += current_duration
+
+            # Move to the next day
+            current_day += timedelta(days=1)
+
+        if author not in total_approval_times:
+            total_approval_times[author] = []
+
+        total_approval_times[author].append(approval_duration)
+
+    # Move to the next page
+    params["page"] += 1
+
 
 # Display the total average approval times
 for author, approval_times in total_approval_times.items():
