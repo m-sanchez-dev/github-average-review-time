@@ -4,6 +4,23 @@ import requests
 from datetime import datetime, time, timedelta
 
 
+# Load environment variables from .env file
+load_dotenv()
+
+access_token = os.environ.get("GITHUB_ACCESS_TOKEN")
+repo_owner = os.environ.get("GITHUB_REPO_OWNER")
+repo_name = os.environ.get("GITHUB_REPO_NAME")
+working_hours_start = time(int(os.environ.get("WORKING_HOURS_START", 7)), 0)
+working_hours_end = time(int(os.environ.get("WORKING_HOURS_END", 20)), 0)
+latest_date = datetime.strptime(os.environ.get("LATEST_DATE", "2023-12-31"), "%Y-%m-%d")
+
+if not access_token or not repo_owner or not repo_name:
+    print(
+        "Please set GITHUB_ACCESS_TOKEN, GITHUB_REPO_OWNER, and GITHUB_REPO_NAME environment variables."
+    )
+    exit()
+
+
 def calculate_working_hours(
     start_time, end_time, working_hours_start, working_hours_end
 ):
@@ -38,23 +55,6 @@ def get_approval_time_for_pr(pr_number, access_token):
     return None
 
 
-# Load environment variables from .env file
-load_dotenv()
-
-access_token = os.environ.get("GITHUB_ACCESS_TOKEN")
-repo_owner = os.environ.get("GITHUB_REPO_OWNER")
-repo_name = os.environ.get("GITHUB_REPO_NAME")
-working_hours_start = time(int(os.environ.get("WORKING_HOURS_START", 7)), 0)
-working_hours_end = time(int(os.environ.get("WORKING_HOURS_END", 20)), 0)
-since_date = datetime.strptime(os.environ.get("SINCE_DATE", "2022-01-01"), "%Y-%m-%d")
-until_date = datetime.strptime(os.environ.get("UNTIL_DATE", "2022-12-31"), "%Y-%m-%d")
-
-if not access_token or not repo_owner or not repo_name:
-    print(
-        "Please set GITHUB_ACCESS_TOKEN, GITHUB_REPO_OWNER, and GITHUB_REPO_NAME environment variables."
-    )
-    exit()
-
 # Specify parameters for the GitHub API request
 url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/pulls"
 params = {
@@ -66,8 +66,6 @@ params = {
 }
 headers = {"Authorization": f"Bearer {access_token}"}
 
-# Define the latest date we want to consider
-latest_date = datetime.strptime(os.environ.get("LATEST_DATE", "2023-12-31"), "%Y-%m-%d")
 
 # Accumulate approval times across all pages
 total_approval_times = {}
