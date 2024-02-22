@@ -4,17 +4,22 @@ import requests
 from datetime import datetime, time, timedelta
 
 
-# Load environment variables from .env file
 load_dotenv()
 
 working_hours_start = time(int(os.environ.get("WORKING_HOURS_START", 7)), 0)
 working_hours_end = time(int(os.environ.get("WORKING_HOURS_END", 20)), 0)
 
 
-def check_env_variables():
+def get_required_env_variable():
     access_token = os.environ.get("GITHUB_ACCESS_TOKEN")
     repo_owner = os.environ.get("GITHUB_REPO_OWNER")
     repo_name = os.environ.get("GITHUB_REPO_NAME")
+
+    return access_token, repo_owner, repo_name
+
+
+def check_env_variables():
+    access_token, repo_owner, repo_name = get_required_env_variable()
 
     if not access_token or not repo_owner or not repo_name:
         print(
@@ -38,9 +43,7 @@ def calculate_working_hours(
 
 
 def get_approval_time_for_pr(pr_number):
-    access_token = os.environ.get("GITHUB_ACCESS_TOKEN")
-    repo_owner = os.environ.get("GITHUB_REPO_OWNER")
-    repo_name = os.environ.get("GITHUB_REPO_NAME")
+    access_token, repo_owner, repo_name = get_required_env_variable()
 
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/pulls/{pr_number}/reviews"
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -72,17 +75,17 @@ def filter_pull_requests_by_date(pull_requests):
 
 
 def get_all_pull_requests():
-    repo_owner = os.environ.get("GITHUB_REPO_OWNER")
-    repo_name = os.environ.get("GITHUB_REPO_NAME")
-    access_token = os.environ.get("GITHUB_ACCESS_TOKEN")
+    access_token, repo_owner, repo_name = get_required_env_variable()
+
     print("Retrieving pull requests...")
+
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/pulls"
     params = {
         "state": "closed",
-        "per_page": 100,  # Adjust as needed
-        "page": 1,  # Start from the first page
+        "per_page": 100,
+        "page": 1,
         "sort": "created",
-        "direction": "desc",  # Sort in descending order (newest first)
+        "direction": "desc",
     }
     headers = {"Authorization": f"Bearer {access_token}"}
 
@@ -111,7 +114,6 @@ def get_all_pull_requests():
         if removed_old_pull_requests:
             break
 
-        # Move to the next page
         params["page"] += 1
 
     print(f"Retrieved {len(all_pull_requests)} pull requests")
