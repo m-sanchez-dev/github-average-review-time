@@ -18,6 +18,26 @@ def calculate_working_hours(
     )
 
 
+def get_approval_time_for_pr(pr_number, access_token):
+    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/issues/{pr_number}/timeline"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        timeline_data = response.json()
+
+        for event in timeline_data:
+            if (
+                "state" in event
+                and event["state"] == "approved"
+                and "event" in event
+                and event["event"] == "reviewed"
+            ):
+                return datetime.strptime(event["submitted_at"], "%Y-%m-%dT%H:%M:%SZ")
+
+    return None
+
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -78,13 +98,15 @@ while True:
         if not pr["merged_at"]:
             continue  # Skip if the pull request has not been merged
 
-        approval_time = datetime.strptime(pr["merged_at"], "%Y-%m-%dT%H:%M:%SZ")
+        pr_number = pr["number"]
+        approval_time = get_approval_time_for_pr(pr_number, access_token)
 
         # Initialize adjusted approval duration
         approval_duration = 0
 
         # Iterate through days between submission and approval
         current_day = created_at.date()
+
         while current_day <= approval_time.date():
             # Determine the relevant working hours for the current day
             current_start_time = max(
