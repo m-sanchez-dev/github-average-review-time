@@ -143,10 +143,9 @@ while True:
 # Display the total average approval times
 for author, approval_times in total_approval_times.items():
     average_approval_time = sum(approval_times) / len(approval_times)
+    hours, remainder = divmod(average_approval_time * 3600, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
     print(
-        "Author: "
-        + author
-        + ", Total Average Approval Time: "
-        + f"{average_approval_time:.2f}"
-        + " hours"
+        f"Author: {author}, Total Average Approval Time: {int(hours)} hours {int(minutes)} minutes {int(seconds)} seconds"
     )
