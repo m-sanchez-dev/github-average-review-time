@@ -23,7 +23,7 @@ git clone https://github.com/m-sanchez-dev/github-average-review-time.git
 cd github-average-review-time
 ```
 
-1. Install dependencies:
+2. Install dependencies:
 
 ``` bash
 pip install -r requirements.txt
