@@ -182,7 +182,7 @@ for pr in pull_requests:
     total_approval_times[author].append(approval_duration)
 
 print(f"Analyzed {analyzed_prs}")
-# Display the total average approval times
+
 for author, approval_times in total_approval_times.items():
     average_approval_time = sum(approval_times) / len(approval_times)
     hours, remainder = divmod(average_approval_time * 3600, 3600)
