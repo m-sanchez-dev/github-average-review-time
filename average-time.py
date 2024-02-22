@@ -1,7 +1,21 @@
+from dotenv import load_dotenv
 import os
 import requests
-from dotenv import load_dotenv
 from datetime import datetime, time, timedelta
+
+
+def calculate_working_hours(
+    start_time, end_time, working_hours_start, working_hours_end
+):
+    start_of_working_hours = max(
+        start_time, datetime.combine(start_time.date(), working_hours_start)
+    )
+    end_of_working_hours = min(
+        end_time, datetime.combine(end_time.date(), working_hours_end)
+    )
+    return max(
+        0, (end_of_working_hours - start_of_working_hours).total_seconds() / 3600
+    )
 
 
 def calculate_average_approval_times(
@@ -21,30 +35,30 @@ def calculate_average_approval_times(
         # Initialize adjusted approval duration
         approval_duration = 0
 
-        # Calculate adjusted approval duration for each day between submission and approval
-        while submission_time.date() <= approval_time.date():
+        # Iterate through days between submission and approval
+        current_day = submission_time.date()
+        while current_day <= approval_time.date():
             # Determine the relevant working hours for the current day
-            current_working_hours_start = max(
-                datetime.combine(submission_time.date(), working_hours_start),
-                submission_time,
+            current_start_time = max(
+                submission_time, datetime.combine(current_day, working_hours_start)
             )
-            current_working_hours_end = min(
-                datetime.combine(submission_time.date(), working_hours_end),
-                datetime.combine(submission_time.date(), time.max),
+            current_end_time = min(
+                approval_time, datetime.combine(current_day, working_hours_end)
             )
 
             # Calculate the time spent within working hours for the current day
-            current_duration = (
-                current_working_hours_end - current_working_hours_start
-            ).total_seconds() / 3600
+            current_duration = calculate_working_hours(
+                current_start_time,
+                current_end_time,
+                working_hours_start,
+                working_hours_end,
+            )
 
             # Add the time spent on the current day to the total approval duration
             approval_duration += current_duration
 
             # Move to the next day
-            submission_time = datetime.combine(
-                submission_time.date() + timedelta(days=1), working_hours_start
-            )
+            current_day += timedelta(days=1)
 
         if author not in approval_times_per_author:
             approval_times_per_author[author] = []
@@ -60,18 +74,14 @@ load_dotenv()
 access_token = os.environ.get("GITHUB_ACCESS_TOKEN")
 repo_owner = os.environ.get("GITHUB_REPO_OWNER")
 repo_name = os.environ.get("GITHUB_REPO_NAME")
-
-# Working hours range (in 24-hour format)
 working_hours_start = time(int(os.environ.get("WORKING_HOURS_START", 7)), 0)
 working_hours_end = time(int(os.environ.get("WORKING_HOURS_END", 20)), 0)
-
 
 if not access_token or not repo_owner or not repo_name:
     print(
         "Please set GITHUB_ACCESS_TOKEN, GITHUB_REPO_OWNER, and GITHUB_REPO_NAME environment variables."
     )
     exit()
-
 
 # Make a GET request to retrieve pull requests
 url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/pulls?state=closed"
