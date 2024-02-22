@@ -56,10 +56,10 @@ while True:
     response = requests.get(url, params=params, headers=headers)
 
     if not response.status_code == 200:
-        print(f"Failed to retrieve pull requests. Status code: {response.status_code}")
+        print("Failed to retrieve pull requests. Status code:", response.status_code)
         break
 
-    print(f"Retrieved page {params['page']} of pull requests")
+    print("Retrieved page", params["page"], "of pull requests")
     pull_requests = response.json()
     if not pull_requests or overDate:
         break  # No more pages to retrieve
@@ -69,7 +69,9 @@ while True:
 
         if created_at < latest_date:
             overDate = True
-            break  # Exit the loop if the created_at date is before the specified latest date
+            break
+            # Exit the loop if the created_at date is before the
+            # specified latest date
 
         author = pr["user"]["login"]
 
@@ -100,7 +102,8 @@ while True:
                 working_hours_end,
             )
 
-            # Add the time spent on the current day to the total approval duration
+            # Add the time spent on the current day to the total approval
+            # duration
             approval_duration += current_duration
 
             # Move to the next day
@@ -119,5 +122,9 @@ while True:
 for author, approval_times in total_approval_times.items():
     average_approval_time = sum(approval_times) / len(approval_times)
     print(
-        f"Author: {author}, Total Average Approval Time: {average_approval_time:.2f} hours"
+        "Author: "
+        + author
+        + ", Total Average Approval Time: "
+        + f"{average_approval_time:.2f}"
+        + " hours"
     )
