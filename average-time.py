@@ -76,6 +76,8 @@ repo_owner = os.environ.get("GITHUB_REPO_OWNER")
 repo_name = os.environ.get("GITHUB_REPO_NAME")
 working_hours_start = time(int(os.environ.get("WORKING_HOURS_START", 7)), 0)
 working_hours_end = time(int(os.environ.get("WORKING_HOURS_END", 20)), 0)
+since_date = datetime.strptime(os.environ.get("SINCE_DATE", "2022-01-01"), "%Y-%m-%d")
+until_date = datetime.strptime(os.environ.get("UNTIL_DATE", "2022-12-31"), "%Y-%m-%d")
 
 if not access_token or not repo_owner or not repo_name:
     print(
@@ -83,22 +85,55 @@ if not access_token or not repo_owner or not repo_name:
     )
     exit()
 
-# Make a GET request to retrieve pull requests
-url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/pulls?state=closed"
+# Specify parameters for the GitHub API request
+url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/pulls"
+params = {
+    "state": "closed",
+    "per_page": 1000,  # Number of pull requests per page
+    "page": 1,
+}
 headers = {"Authorization": f"Bearer {access_token}"}
-response = requests.get(url, headers=headers)
 
-if response.status_code == 200:
-    pull_requests = response.json()
-    approval_times_per_author = calculate_average_approval_times(
-        pull_requests, working_hours_start, working_hours_end
-    )
+# Initialize variables
+total_pull_requests = []
+total_approval_times = {}
 
-    for author, approval_times in approval_times_per_author.items():
-        average_approval_time = sum(approval_times) / len(approval_times)
-        print(
-            f"Author: {author}, Average Approval Time: {average_approval_time:.2f} hours"
+while True:
+    print(f'Requesting page {params["page"]}...')
+    response = requests.get(url, params=params, headers=headers)
+
+    if response.status_code == 200:
+        pull_requests = response.json()
+        if not pull_requests:
+            break  # No more pages to retrieve
+
+        approval_times_per_author = calculate_average_approval_times(
+            [
+                pr
+                for pr in pull_requests
+                if since_date
+                <= datetime.strptime(pr["created_at"], "%Y-%m-%dT%H:%M:%SZ")
+                <= until_date
+            ],
+            working_hours_start,
+            working_hours_end,
         )
 
-else:
-    print(f"Failed to retrieve pull requests. Status code: {response.status_code}")
+        for author, approval_times in approval_times_per_author.items():
+            if author not in total_approval_times:
+                total_approval_times[author] = []
+
+            total_approval_times[author].extend(approval_times)
+
+        # Move to the next page
+        params["page"] += 1
+    else:
+        print(f"Failed to retrieve pull requests. Status code: {response.status_code}")
+        break
+
+# Display the total average approval times
+for author, approval_times in total_approval_times.items():
+    average_approval_time = sum(approval_times) / len(approval_times)
+    print(
+        f"Author: {author}, Total Average Approval Time: {average_approval_time:.2f} hours"
+    )
