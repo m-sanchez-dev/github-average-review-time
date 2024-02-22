@@ -99,6 +99,9 @@ while True:
         pr_number = pr["number"]
         approval_time = get_approval_time_for_pr(pr_number, access_token)
 
+        if not approval_time:
+            continue
+
         # Initialize adjusted approval duration
         approval_duration = 0
 
